@@ -68,13 +68,15 @@ If you find Deep Feature Flow useful in your research, please consider citing:
 
 1. MXNet from [the offical repository](https://github.com/dmlc/mxnet). We tested our code on [MXNet@(commit 62ecb60)](https://github.com/dmlc/mxnet/tree/62ecb60). Due to the rapid development of MXNet, it is recommended to checkout this version if you encounter any issues. We may maintain this repository periodically if MXNet adds important feature in future release.
 
-2. Python packages might missing: cython, opencv-python >= 3.2.0, easydict. If `pip` is set up on your system, those packages should be able to be fetched and installed by running
+2. Python 2.7. We recommend using Anaconda2 as it already includes many common packages. We do not suppoort Python 3 yet, if you want to use Python 3 you need to modify the code to make it work.
+
+3. Python packages might missing: cython, opencv-python >= 3.2.0, easydict. If `pip` is set up on your system, those packages should be able to be fetched and installed by running
 	```
 	pip install Cython
 	pip install opencv-python==3.2.0.6
 	pip install easydict==1.6
 	```
-3. For Windows users, Visual Studio 2015 is needed to compile cython module.
+4. For Windows users, Visual Studio 2015 is needed to compile cython module.
 
 
 ## Requirements: Hardware
@@ -83,19 +85,44 @@ Any NVIDIA GPUs with at least 6GB memory should be OK
 
 ## Installation
 
-1. Clone the Deep Feature Flow repository
+1. Clone the Deep Feature Flow repository, and we'll call the directory that you cloned Deep-Feature-Flow as ${DFF_ROOT}. 
+
 ~~~
 git clone https://github.com/msracver/Deep-Feature-Flow.git
 ~~~
 2. For Windows users, run ``cmd .\init.bat``. For Linux user, run `sh ./init.sh`. The scripts will build cython module automatically and create some folders.
-3. Copy operators in `./rfcn/operator_cxx` to `$(YOUR_MXNET_FOLDER)/src/operator/contrib` and recompile MXNet.
-4. Please install MXNet following the official guide of MXNet. For advanced users, you may put your Python packge into `./external/mxnet/$(YOUR_MXNET_PACKAGE)`, and modify `MXNET_VERSION` in `./experiments/rfcn/cfgs/*.yaml` to `$(YOUR_MXNET_PACKAGE)`. Thus you can switch among different versions of MXNet quickly.
+
+3. Install MXNet:
+
+	3.1 Clone MXNet and checkout to [MXNet@(commit 62ecb60)](https://github.com/dmlc/mxnet/tree/62ecb60) by
+	```
+	git clone --recursive https://github.com/dmlc/mxnet.git
+	git checkout 62ecb60
+	git submodule update
+	```
+	3.2 Copy operators in `$(DFF_ROOT)/dff_rfcn/operator_cxx` or `$(DFF_ROOT)/rfcn/operator_cxx` to `$(YOUR_MXNET_FOLDER)/src/operator/contrib` by
+	```
+	cp -r $(DFF_ROOT)/dff_rfcn/operator_cxx/* $(MXNET_ROOT)/src/operator/contrib/
+	```
+	3.3 Compile MXNet
+	```
+	cd ${MXNET_ROOT}
+	make -j4
+	```
+	3.4 Install the MXNet Python binding by
+	
+	***Note: If you will actively switch between different versions of MXNet, please follow 3.5 instead of 3.4***
+	```
+	cd python
+	sudo python setup.py install
+	```
+	3.5 For advanced users, you may put your Python packge into `./external/mxnet/$(YOUR_MXNET_PACKAGE)`, and modify `MXNET_VERSION` in `./experiments/dff_rfcn/cfgs/*.yaml` to `$(YOUR_MXNET_PACKAGE)`. Thus you can switch among different versions of MXNet quickly.
 
 
 ## Demo
 
 
-1. To run the demo with our trained model (on ImageNet DET + VID train), please download the model manually from [OneDrive](https://1drv.ms/u/s!Am-5JzdW2XHzhqMPLjGGCvAeciQflg), and put it under folder `model/`.
+1. To run the demo with our trained model (on ImageNet DET + VID train), please download the model manually from [OneDrive](https://1drv.ms/u/s!Am-5JzdW2XHzhqMPLjGGCvAeciQflg) (for users from Mainland China, please try [Baidu Yun](https://pan.baidu.com/s/1nuPULnj)), and put it under folder `model/`.
 
 	Make sure it looks like this:
 	```
@@ -126,7 +153,7 @@ git clone https://github.com/msracver/Deep-Feature-Flow.git
 	./data/ILSVRC2015/ImageSets
 	```
 
-2. Please download ImageNet pre-trained ResNet-v1-101 model and Flying-Chairs pre-trained FlowNet model manually from [OneDrive](https://1drv.ms/u/s!Am-5JzdW2XHzhqMOBdCBiNaKbcjPrA), and put it under folder `./model`. Make sure it looks like this:
+2. Please download ImageNet pre-trained ResNet-v1-101 model and Flying-Chairs pre-trained FlowNet model manually from [OneDrive](https://1drv.ms/u/s!Am-5JzdW2XHzhqMOBdCBiNaKbcjPrA) (for users from Mainland China, please try [Baidu Yun](https://pan.baidu.com/s/1nuPULnj)), and put it under folder `./model`. Make sure it looks like this:
 	```
 	./model/pretrained_model/resnet_v1_101-0000.params
 	./model/pretrained_model/flownet-0000.params
@@ -154,3 +181,29 @@ Code has been tested under:
 - Windows Server 2012 R2 with 8 K40 GPUs and Intel Xeon CPU E5-2650 v2 @ 2.60GHz
 - Windows Server 2012 R2 with 4 Pascal Titan X GPUs and Intel Xeon CPU E5-2650 v4 @ 2.30GHz
 
+## FAQ
+
+Q: It says `AttributeError: 'module' object has no attribute 'MultiProposal'`.
+
+A: This is because either
+ - you forget to copy the operators to your MXNet folder
+ - or you copy to the wrong path
+ - or you forget to re-compile and install
+ - or you install the wrong MXNet
+
+    Please print `mxnet.__path__` to make sure you use correct MXNet
+
+<br/><br/>
+Q: I encounter `segment fault` at the beginning.
+
+A: A compatibility issue has been identified between MXNet and opencv-python 3.0+. We suggest that you always `import cv2` first before `import mxnet` in the entry script. 
+
+<br/><br/>
+Q: I find the training speed becomes slower when training for a long time.
+
+A: It has been identified that MXNet on Windows has this problem. So we recommend to run this program on Linux. You could also stop it and resume the training process to regain the training speed if you encounter this problem.
+
+<br/><br/>
+Q: Can you share your caffe implementation?
+
+A: Due to several reasons (code is based on a old, internal Caffe, port to public Caffe needs extra work, time limit, etc.). We do not plan to release our Caffe code. Since a warping layer is easy to implement, anyone who wish to do it is welcome to make a pull request.
